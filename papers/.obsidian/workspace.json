@@ -69,12 +69,12 @@
             "state": {
               "type": "markdown",
               "state": {
-                "file": "Papers to read.md",
+                "file": "Insights on Muon from Simple Quadratics.md",
                 "mode": "source",
                 "source": false
               },
               "icon": "lucide-file",
-              "title": "Papers to read"
+              "title": "Insights on Muon from Simple Quadratics"
             }
           }
         ],
@@ -110,7 +110,7 @@
             "state": {
               "type": "search",
               "state": {
-                "query": "",
+                "query": "tag:#wiriting",
                 "matchingCase": false,
                 "explainSearch": false,
                 "collapseAll": false,
@@ -243,6 +243,8 @@
   "active": "add9b6e505fd44e7",
   "lastOpenFiles": [
     "templates/Paper summary template.md",
+    "Insights on Muon from Simple Quadratics.md",
+    "Stiefel-manifold.md",
     "Papers to read.md",
     "Muon on quadratics.md",
     "Untitled 3.md",
