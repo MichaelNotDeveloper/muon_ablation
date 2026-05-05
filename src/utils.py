@@ -47,6 +47,18 @@ def grad_fro_norm(params):
         s += float((p.grad.detach() ** 2).sum().item())
     return math.sqrt(s)
 
+def get_matrix_singular_values(matrix : torch.Tensor):
+    assert matrix.dim() == 2
+    return torch.linalg.svdvals(matrix).detach().tolist()
+
+def get_sorted_spectrum_grad(params) -> list[list[float]]:
+    spectre_list = []
+    for p in params:
+        if p.grad is None:
+            continue
+        spectre_list.append(sorted(get_matrix_singular_values(p.grad)))
+    return spectre_list
+    
 
 def condition_number(params):
     """
@@ -87,7 +99,7 @@ def run_trace(
     lr0 = float(opt.param_groups[0]["lr"])
     sched_name = sch.__class__.__name__ if sch is not None else "None"
 
-    losses, gnorms, gcondnums = [], [], []
+    losses, gnorms, gcondnums, gspectrum_values = [], [], [], []
     errF, errC = [], []
 
     for _ in range(steps):
@@ -98,6 +110,7 @@ def run_trace(
         losses.append(float(loss.detach().cpu().item()))
         gnorms.append(grad_fro_norm(params))
         gcondnums.append(condition_number(params))
+        gspectrum_values.append(get_sorted_spectrum_grad(params))
 
         # log subspace errors BEFORE the step (consistent with loss/grad)
         if (W_star is not None) and (UF is not None) and (UC is not None):
@@ -116,6 +129,7 @@ def run_trace(
         "lr0": lr0,
         "sched": sched_name,
         "grad_cond_num": gcondnums,
+        "grad_spectrum_values" : gspectrum_values
     }
     if errF:
         out["err_F"] = errF

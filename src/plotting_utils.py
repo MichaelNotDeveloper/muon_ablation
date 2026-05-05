@@ -9,6 +9,7 @@ import numpy as np
 import torch
 import matplotlib.pyplot as plt
 import matplotlib.colors as mcolors
+from dataclasses import dataclass
 
 
 # Pretty display names + optional filtering (set to None to drop)
@@ -182,6 +183,161 @@ def _select_baseline(
     return _pick_best_variant(items, metric=metric, tail=tail, reducer=reducer)
 
 
+def _grad_spectrum_summary(x, steps: int, which: str) -> np.ndarray:
+    """
+    Convert grad_spectrum_values to a 1D per-step summary.
+
+    Expected trace shape is usually:
+      step -> parameter -> singular values
+
+    The helper also tolerates tensors/arrays and flattens all parameter spectra
+    at each step before taking the requested summary.
+    """
+    if torch.is_tensor(x):
+        x = x.detach().cpu().numpy()
+
+    out = np.full((steps,), np.nan, dtype=float)
+
+    for t in range(min(steps, len(x))):
+        step_vals = x[t]
+        if torch.is_tensor(step_vals):
+            step_vals = step_vals.detach().cpu().numpy()
+
+        vals = np.asarray(step_vals, dtype=float).reshape(-1)
+        vals = vals[np.isfinite(vals)]
+        if vals.size == 0:
+            continue
+
+        if which == "min":
+            out[t] = float(np.min(vals))
+        elif which == "max":
+            out[t] = float(np.max(vals))
+        elif which == "mean":
+            out[t] = float(np.mean(vals))
+        elif which == "cond":
+            mn = float(np.min(vals))
+            mx = float(np.max(vals))
+            out[t] = mx / mn if mn > 0 else np.nan
+        else:
+            raise ValueError(f"Unknown grad spectrum summary: {which}")
+
+    return out
+
+
+def _grad_spectrum_matrix(x, steps: int) -> np.ndarray:
+    """
+    Convert grad_spectrum_values to [steps, rank].
+
+    Existing traces store a list/tensor shaped like [steps, n_params, rank].
+    For multi-parameter runs we flatten parameter spectra at each step and sort
+    them, so column i remains the i-th spectral value over time.
+    """
+    if torch.is_tensor(x):
+        x = x.detach().cpu().numpy()
+
+    rows = []
+    max_rank = 0
+    for t in range(min(steps, len(x))):
+        vals = x[t]
+        if torch.is_tensor(vals):
+            vals = vals.detach().cpu().numpy()
+        vals = np.asarray(vals, dtype=float).reshape(-1)
+        vals = vals[np.isfinite(vals)]
+        vals = np.sort(vals)
+        rows.append(vals)
+        max_rank = max(max_rank, vals.size)
+
+    if max_rank == 0:
+        return np.full((steps, 0), np.nan, dtype=float)
+
+    out = np.full((steps, max_rank), np.nan, dtype=float)
+    for t, vals in enumerate(rows):
+        out[t, : vals.size] = vals
+
+    if len(rows) < steps and rows:
+        out[len(rows) :, :] = out[len(rows) - 1, :]
+
+    return out
+
+
+def plot_grad_spectrum_quantiles(
+    results_list: List[Dict[str, Dict[str, Any]]],
+    algo_key: str,
+    steps: int,
+    title_prefix: str = "",
+    savepath: Optional[str] = None,
+    show: bool = True,
+    ci_mult: float = 1.96,
+    eps: float = 1e-12,
+):
+    """
+    Plot one time series per singular-value index of the gradient.
+
+    Each line is the median of sigma_i(grad) across experiments. The translucent
+    band is the central quantile interval controlled by ci_mult.
+    """
+    spectra = []
+    for res in results_list:
+        tr = res.get(algo_key, None)
+        if tr is None or "grad_spectrum_values" not in tr:
+            continue
+        mat = _grad_spectrum_matrix(tr["grad_spectrum_values"], steps)
+        if mat.shape[1] > 0:
+            spectra.append(mat)
+
+    if not spectra:
+        return False
+
+    rank = max(mat.shape[1] for mat in spectra)
+    cube = np.full((len(spectra), steps, rank), np.nan, dtype=float)
+    for j, mat in enumerate(spectra):
+        cube[j, :, : mat.shape[1]] = mat[:, :rank]
+
+    q_lo, q_mid, q_hi = _central_quantiles_from_z(ci_mult)
+    x = np.arange(steps)
+
+    fig, ax = plt.subplots(1, 1, figsize=(11.5, 7.0), dpi=140)
+    cmap = plt.get_cmap("viridis")
+
+    for i in range(rank):
+        Y = cube[:, :, i]
+        mid = np.nanquantile(Y, q_mid, axis=0)
+        lo = np.nanquantile(Y, q_lo, axis=0)
+        hi = np.nanquantile(Y, q_hi, axis=0)
+
+        mid[~np.isfinite(mid)] = np.nan
+        lo[~np.isfinite(lo)] = np.nan
+        hi[~np.isfinite(hi)] = np.nan
+        mid[mid <= eps] = eps
+        lo[lo <= eps] = eps
+        hi[hi <= eps] = eps
+
+        color = cmap(i / max(1, rank - 1))
+        label = rf"$\sigma_{{{i + 1}}}$" if rank <= 24 else None
+        ax.plot(x, mid, color=color, linewidth=1.5, alpha=0.95, label=label)
+        ax.fill_between(x, lo, hi, color=color, alpha=0.13, linewidth=0)
+
+    ax.set_yscale("log", nonpositive="mask")
+    ax.set_xlabel("step")
+    ax.set_ylabel(r"gradient singular values (log)")
+    ax.set_title(f"{title_prefix} | {algo_key} | grad spectrum")
+    ax.grid(True, which="both", alpha=0.25)
+    if rank <= 24:
+        ax.legend(frameon=False, fontsize=8, ncol=min(4, rank))
+    plt.tight_layout()
+
+    if savepath is not None:
+        d = os.path.dirname(savepath)
+        if d:
+            os.makedirs(d, exist_ok=True)
+        fig.savefig(savepath, dpi=200, format="pdf", bbox_inches="tight")
+
+    if show:
+        plt.show()
+    plt.close(fig)
+    return True
+
+
 # Main plotting function
 def plot_traces_side_by_side(
     results: Dict[str, Dict[str, Any]],
@@ -233,6 +389,7 @@ def plot_traces_side_by_side(
 
     # detect whether we can plot subspace errors
     has_subspace = any(("err_F" in tr and "err_C" in tr) for tr in results.values())
+    has_grad_spectrum = any("grad_spectrum_values" in tr for tr in results.values())
 
     # Build axes list in the order we want
     axes_specs = [("loss", None)]
@@ -240,6 +397,9 @@ def plot_traces_side_by_side(
         axes_specs.append(("grad_norm", None))
     if show_grad_cond_num:
         axes_specs.append(("grad_cond_num", None))
+    if has_grad_spectrum:
+        axes_specs.append(("grad_spectrum_min", None))
+        axes_specs.append(("grad_spectrum_max", None))
     if show_eig_hist:
         axes_specs.append(("eig_hist", None))
     if has_subspace:
@@ -345,6 +505,28 @@ def plot_traces_side_by_side(
         axC.set_ylabel("cond(grad) (log)")
         axC.grid(True, which="both", alpha=0.25)
 
+    # ---- Grad singular values (optional, auto) ----
+    if "grad_spectrum_min" in ax:
+        axSmin = ax["grad_spectrum_min"]
+        axSmax = ax["grad_spectrum_max"]
+        for name, tr in results.items():
+            if "grad_spectrum_values" not in tr:
+                continue
+            smin = _grad_spectrum_summary(tr["grad_spectrum_values"], steps, "min")
+            smax = _grad_spectrum_summary(tr["grad_spectrum_values"], steps, "max")
+            _plot_series(axSmin, smin, name)
+            _plot_series(axSmax, smax, name)
+
+        axSmin.set_yscale("log")
+        axSmin.set_xlabel("step")
+        axSmin.set_ylabel(r"$\sigma_{\min}(\nabla)$ (log)")
+        axSmin.grid(True, which="both", alpha=0.25)
+
+        axSmax.set_yscale("log")
+        axSmax.set_xlabel("step")
+        axSmax.set_ylabel(r"$\sigma_{\max}(\nabla)$ (log)")
+        axSmax.grid(True, which="both", alpha=0.25)
+
     # ---- Eigenvalue histogram (optional) ----
     if show_eig_hist:
         axE = ax["eig_hist"]
@@ -377,14 +559,15 @@ def plot_traces_side_by_side(
     # Legend below (shared) — pull from loss axis
     handles, labels = axL.get_legend_handles_labels()
     # fig.legend(handles, labels, loc="upper right", frameon=False, bbox_to_anchor=(0.5, -0.02))
-    fig.legend(
-        handles,
-        labels,
-        loc="upper right",
-        frameon=False,
-        bbox_to_anchor=(1.0, 0.97),
-        fontsize=9,
-    )
+    if handles:
+        fig.legend(
+            handles,
+            labels,
+            loc="upper right",
+            frameon=False,
+            bbox_to_anchor=(1.0, 0.97),
+            fontsize=9,
+        )
     plt.tight_layout()
 
     if savepath is not None:
@@ -637,7 +820,9 @@ def plot_family_drilldowns(
 
             axh.plot(x[: len(y)], y, color=col, alpha=0.6, linewidth=1.8, label=lab)
 
-        axh.legend(frameon=False, fontsize=8)
+        handles, _ = axh.get_legend_handles_labels()
+        if handles:
+            axh.legend(frameon=False, fontsize=8)
 
     kind = extract_kind(title_prefix)
 
@@ -689,6 +874,14 @@ def _stack_metric(
         tr = res.get(key, None)
         if tr is None:
             continue
+
+        if metric.startswith("grad_spectrum_"):
+            if "grad_spectrum_values" not in tr:
+                continue
+            which = metric.replace("grad_spectrum_", "", 1)
+            rows.append(_grad_spectrum_summary(tr["grad_spectrum_values"], steps, which))
+            continue
+
         if metric not in tr:
             continue
         rows.append(_to_1d_np(tr[metric], steps))
@@ -1042,6 +1235,14 @@ def plot_mean_ci_comparison(
         axes_specs.append(("grad_norm", r"$\|\nabla\|_F$ (log)", True))
     if show_grad_cond_num:
         axes_specs.append(("grad_cond_num", "cond(grad) (log)", True))
+    has_grad_spectrum = any(
+        "grad_spectrum_values" in tr
+        for res in results_list
+        for tr in res.values()
+    )
+    if has_grad_spectrum:
+        axes_specs.append(("grad_spectrum_min", r"$\sigma_{\min}(\nabla)$ (log)", True))
+        axes_specs.append(("grad_spectrum_max", r"$\sigma_{\max}(\nabla)$ (log)", True))
 
     ncols = len(axes_specs)
     fig, axes = plt.subplots(1, ncols, figsize=(10.0 * ncols, 6.2), dpi=140)
@@ -1162,7 +1363,9 @@ def plot_mean_ci_comparison(
         a.set_ylabel(ylab)
         a.grid(True, which="both", alpha=0.25)
 
-        a.legend(frameon=False, loc="upper right", fontsize=9)
+        handles, _ = a.get_legend_handles_labels()
+        if handles:
+            a.legend(frameon=False, loc="upper right", fontsize=9)
     plt.tight_layout()
 
     if savepath is not None:
@@ -1176,7 +1379,6 @@ def plot_mean_ci_comparison(
     plt.close(fig)
 
 
-from .plotting_utils import _family_key, KIND_RENAME
 
 
 @dataclass(frozen=True)
@@ -1187,13 +1389,31 @@ class BestRun:
     final_val: float
 
 
-def _to_1d_np(x: Any) -> np.ndarray:
-    """Convert list/torch/numpy to 1D float numpy array."""
+def _to_1d_np(x: Any, steps: Optional[int] = None) -> np.ndarray:
+    """Convert list/torch/numpy to 1D float numpy array, optionally padded/clipped."""
     if x is None:
-        return np.asarray([], dtype=float)
+        if steps is None:
+            return np.asarray([], dtype=float)
+        return np.full((steps,), np.nan, dtype=float)
     if torch.is_tensor(x):
         x = x.detach().cpu().numpy()
-    x = np.asarray(x, dtype=float).reshape(-1)
+    x = np.asarray(x, dtype=float)
+
+    # If the metric is accidentally multi-dimensional, keep time on axis 0 and
+    # use the first component rather than flattening time and features together.
+    x = np.squeeze(x)
+    if x.ndim > 1:
+        x = x[:, 0]
+    x = x.astype(float).reshape(-1)
+
+    if steps is not None:
+        if x.shape[0] < steps:
+            if x.shape[0] == 0:
+                x = np.full((steps,), np.nan, dtype=float)
+            else:
+                x = np.pad(x, (0, steps - x.shape[0]), mode="edge")
+        else:
+            x = x[:steps]
     return x
 
 

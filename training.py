@@ -14,11 +14,15 @@ from typing import Dict, Any, List, Optional, Tuple
 
 import torch
 
-from muon import Muon
-from muon.data import build_instance
-from muon.runner import compare_traces
-from muon.plotting import plot_family_drilldowns
-from muon.plotting import plot_traces_side_by_side, plot_mean_ci_comparison
+from src.optimizers import Muon
+from src.simple_qudratics_builder import build_instance
+from src.utils import compare_traces
+from src.plotting_utils import plot_family_drilldowns
+from src.plotting_utils import (
+    plot_grad_spectrum_quantiles,
+    plot_mean_ci_comparison,
+    plot_traces_side_by_side,
+)
 
 
 def seed_everything(seed: int):
@@ -166,7 +170,7 @@ def to_cpu(x):
 
 def traces_to_tensors(tr: Dict[str, Any]) -> Dict[str, Any]:
     out = dict(tr)
-    for k in ["loss", "grad_norm", "grad_cond_num", "err_F", "err_C"]:
+    for k in ["loss", "grad_norm", "grad_cond_num", "err_F", "err_C", "grad_spectrum_values"]:
         if k in out and isinstance(out[k], list):
             out[k] = torch.tensor(out[k], dtype=torch.float64)
     return out
@@ -331,7 +335,7 @@ def run_plot(args):
 
         matplotlib.use("Agg")
 
-    from muon.plotting import plot_traces_side_by_side
+    from src.plotting_utils import plot_traces_side_by_side
 
     root = args.outdir
     if not os.path.isdir(root):
@@ -429,6 +433,33 @@ def run_plot(args):
             baseline_line_alpha=0.95,
             baseline_band_alpha=0.18,
         )
+
+        spectrum_keys = sorted(
+            {
+                key
+                for res in results_list
+                for key, tr in res.items()
+                if "grad_spectrum_values" in tr
+            }
+        )
+        if spectrum_keys:
+            spectrum_dir = os.path.join(plot_dir, "grad_spectrum")
+            os.makedirs(spectrum_dir, exist_ok=True)
+            for key in spectrum_keys:
+                spectrum_savepath = os.path.join(
+                    spectrum_dir, f"{_safe(key)}.pdf"
+                )
+                wrote = plot_grad_spectrum_quantiles(
+                    results_list,
+                    algo_key=key,
+                    steps=steps,
+                    title_prefix=mean_title,
+                    savepath=spectrum_savepath,
+                    show=(not args.no_show),
+                    ci_mult=1.96,
+                )
+                if wrote:
+                    print(f"[PLOT] wrote grad spectrum: {spectrum_savepath}")
 
         # Separate plots for each experiment.
         if args.plot_separate:
@@ -1334,15 +1365,14 @@ def run_table_ratios(args):
         save_json(args.table_out_json, out)
         print(f"\n[TABLE-RATIOS] wrote: {args.table_out_json}")
 
-
 def parse_args():
     p = argparse.ArgumentParser()
 
     p.add_argument(
         "--mode", choices=["sweep", "plot", "table", "table-ratios"], default="sweep"
     )
-    p.add_argument("--seed", type=int, default=0)
-    p.add_argument("--n", type=int, default=128)
+    p.add_argument("--seed", type=int, default=0) 
+    p.add_argument("--n", type=int, default=128) # 
     p.add_argument("--d_in", type=int, default=128)
     p.add_argument("--d_out", type=int, default=128)
     p.add_argument("--steps", type=int, default=500)
