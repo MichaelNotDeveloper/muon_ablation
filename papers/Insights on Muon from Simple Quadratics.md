@@ -29,7 +29,7 @@ Tags : [[momentum]], [[grid confinement]], [[inexact projections]], [[]]
 	$$
 	Where bounds of paper are derived
 	$$
-	 \min_{0 \le t < T} \|\nabla L(W_t)\|_* \le \frac{L(W_0)-L^\star}{T\beta}+\frac{c}{2}d\beta.
+	\min_{0 \le t < T} \|\nabla L(W_t)\|_* \le \frac{L(W_0)-L^\star}{T\beta}+\frac{c}{2}d\beta.
 	$$
 	 Although it helps to derive worst bounds, assumption neglects other important peculiarities of muon, as inexact projections (aka NS), grid confinement and spectre dependence
 	Author's take (consider later) :  lipshitz constant can change as we approach minima
@@ -40,7 +40,7 @@ Tags : [[momentum]], [[grid confinement]], [[inexact projections]], [[]]
 
 # Main work
 We start off with some quadratic functions, (I'll add up our linear ones)
-- (1)  $L(W) = 0.5 \|W\|_F^2 \quad \nabla L(W) = U V^T$
+- (1) $L(W) = 0.5 \|W\|_F^2 \quad \nabla L(W) = U V^T$
 - (2) $L(W) = 0.5 W^T A W + B W + C\quad \nabla L(W) = P(A W + B)$ ($A \in \mathbb{S}$)
 - (3) $L(W) = 0.5 \|X W - Y\|^2_F \quad \nabla L(W) = P(X^T X W + X^T Y)$ basically the same as (2), actually (1) sampled from this loss
 - (4) $L(W) = 0.5 \|X W - Y\|^2_F + \|W\|_* = P(X^T X W + X^T Y + U_W V^T_W)$
@@ -53,7 +53,7 @@ We start off with some quadratic functions, (I'll add up our linear ones)
 *Finite-budget*
 Okay, muon sucks! But... if we iterate it infinitely, what about finite budget, for example $T = 500$. Maybe the constant of gradient descent affects convergence more than big-O?
 MOMO lectures offer these constants
-- $\mu-\text{convexity}\ \&\ \text{Lipshitz}$ - $C = \frac L \mu = \kappa$
+- mu-convexity & Lipshitz - $C = \frac L \mu = \kappa$
 - convexity & Lipshitz - $C = L$ (with $O(\sqrt \frac 1 \varepsilon)$)
 - Lipshitz - $C = L$ (with $O(\sqrt \frac 1 \varepsilon)$)
 Still, using this constants offers us a worst-cast scenario, what about average-case (what if the change not only the $\kappa$ but entire $\Sigma$ overall)?
@@ -95,7 +95,6 @@ One of the problems: adding values to the spectre can't be independent since we 
 Using toy example (1) we get some obvious results (carefully chosen noise dispersion allows muon to break grid confinement) 
 ![](https://i.ibb.co/4RCffgDs/image.png)
 There are some plots which show that min_spiked sometimes works better with added noise (probably due to having trouble in the grid confinement quite early), this also works with max_ spiked, since it has quite a small eigenvalue in the end.
-
 
 # Additional info
 
