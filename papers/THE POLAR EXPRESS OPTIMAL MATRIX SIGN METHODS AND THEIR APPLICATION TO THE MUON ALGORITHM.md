@@ -7,8 +7,6 @@ Status : #finished
 Tags : #polar
 
 References and links :
-- https://proceedings.mlr.press/v97/ghorbani19b.html
-- http://proceedings.mlr.press/v97/ghorbani19b/ghorbani19b.pdf
 
 ## Abstract
 Авторы разработали аналог Newton-Schulz для Muon - An optimizer for hidden layers in neural networks. А если быть точнее, то они разработали способ вычисления Polar Decomposition и Matrix Sign Function эффективно на GPU, используя только матричные умножения и с учетом ограниченной точности, делая его практичным даже во bfloat16.
