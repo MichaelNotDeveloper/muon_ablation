@@ -64,7 +64,7 @@ Matricies are derived from $A = Q^T \Sigma Q \quad Q \mid  Q R = \mathcal{N}(0, 
 Also there is other sampling variants : Wishart-distribution, Low-rank pertrubations
 
 *Experiments*
-Using sampling above we can control $\Sigma$ values and observe if muon actually wins in finite budget steps $:= T$  on task (2)
+Using sampling above we can control $\Sigma$ values and observe if muo:n actually wins in finite budget steps $:= T$  on task (2)
 (1 - muon wins all the time, 0 - GD wins all the time), ALSO! $\kappa := 1e4$ 
 
 | kind of $\Sigma$ distribution | t = T/10 | t = T/2 | t = T |
@@ -95,6 +95,13 @@ One of the problems: adding values to the spectre can't be independent since we 
 Using toy example (1) we get some obvious results (carefully chosen noise dispersion allows muon to break grid confinement) 
 ![](https://i.ibb.co/4RCffgDs/image.png)
 There are some plots which show that min_spiked sometimes works better with added noise (probably due to having trouble in the grid confinement quite early), this also works with max_ spiked, since it has quite a small eigenvalue in the end.
-# Results
+# Paper problems
+- optimal learning rate is chosen from a small group {1e-1, 1e-2, 1e-3}
+
+# Cool tricks
+
+
+# TODO
+- $\nabla L(W)$
 
 References and links :
