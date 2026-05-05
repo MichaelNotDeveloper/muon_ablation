@@ -95,13 +95,43 @@ One of the problems: adding values to the spectre can't be independent since we 
 Using toy example (1) we get some obvious results (carefully chosen noise dispersion allows muon to break grid confinement) 
 ![](https://i.ibb.co/4RCffgDs/image.png)
 There are some plots which show that min_spiked sometimes works better with added noise (probably due to having trouble in the grid confinement quite early), this also works with max_ spiked, since it has quite a small eigenvalue in the end.
+
+
+# Additional info
+
+
+###  _How quadratics task is built and the connection to linear regression_
+All quadratic objectives are derived from a noiseless linear least-squares problem. We consider matrix parameters $W \in \mathbb{R}^{d_{\text{in}} \times d_{\text{out}}}$ and define
+
+$$
+L(W)=\frac{1}{2nd_{\text{out}}}\|XW-Y\|_F^2,
+$$
+
+where $X \in \mathbb{R}^{n \times d_{\text{in}}}$ and $Y \in \mathbb{R}^{n \times d_{\text{out}}}$. Expanding this yields
+
+$$
+L(W)
+=
+\frac12\langle W,AW\rangle
++
+\langle B,W\rangle
++
+c,
+$$
+
+with
+
+$$
+A=\frac{1}{nd_{\text{out}}}X^\top X,
+\qquad
+B=-\frac{1}{nd_{\text{out}}}X^\top Y,
+\qquad
+c=\frac{1}{2nd_{\text{out}}}\|Y\|_F^2.
+$$
+We define $Y = X W^*$ so that the solution of linear regression equals $W^*$. 
+
+
+
 # Paper problems
 - optimal learning rate is chosen from a small group {1e-1, 1e-2, 1e-3}
-
-# Cool tricks
-
-
-# TODO
-- $\nabla L(W)$
-
 References and links :
