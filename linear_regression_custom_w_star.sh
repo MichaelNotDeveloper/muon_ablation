@@ -12,5 +12,10 @@ python3 training.py \
   --s_max 10.0 \
   --alpha 1.0 \
   --num_experiments 10 \
-  --lrs 0.001 0.01 0.1
+  --lrs 0.001 0.01 0.1 \
+  --w_star rand_flat_min \
+  --w_star_s_min 0.1 \
+  --w_star_s_max 1 \
+  --w_star_alpha 1.0\
+
 python3 training.py --mode plot --outdir runs --no_show

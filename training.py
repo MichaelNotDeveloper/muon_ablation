@@ -15,7 +15,7 @@ from typing import Dict, Any, List, Optional, Tuple
 import torch
 
 from src.optimizers import Muon
-from src.simple_qudratics_builder import build_instance
+from src.simple_qudratics_builder import build_instance, generate_w_star
 from src.utils import compare_traces
 from src.plotting_utils import plot_family_drilldowns
 from src.plotting_utils import (
@@ -170,7 +170,14 @@ def to_cpu(x):
 
 def traces_to_tensors(tr: Dict[str, Any]) -> Dict[str, Any]:
     out = dict(tr)
-    for k in ["loss", "grad_norm", "grad_cond_num", "err_F", "err_C", "grad_spectrum_values"]:
+    for k in [
+        "loss",
+        "grad_norm",
+        "grad_cond_num",
+        "err_F",
+        "err_C",
+        "grad_spectrum_values",
+    ]:
         if k in out and isinstance(out[k], list):
             out[k] = torch.tensor(out[k], dtype=torch.float64)
     return out
@@ -179,6 +186,7 @@ def traces_to_tensors(tr: Dict[str, Any]) -> Dict[str, Any]:
 def instance_dirname(args, kind: str, instance_seed: int) -> str:
     return _safe(
         f"kind={kind}"
+        f"w_star={args.w_star}"
         f"_n={args.n}_din={args.d_in}_dout={args.d_out}"
         f"_smin={_fmt_float(args.s_min)}_smax={_fmt_float(args.s_max)}"
         f"_alpha={args.alpha:g}"
@@ -188,7 +196,8 @@ def instance_dirname(args, kind: str, instance_seed: int) -> str:
 
 def run_sweep(args, device: str):
     seed_everything(args.seed + 111)
-    W_star = torch.randn(args.d_in, args.d_out, device=device) / math.sqrt(args.d_in)
+
+    W_star = generate_w_star(args.d_in, args.d_out, device, args.w_star, args)
 
     lr_scheduler_type = "ConstantLR"
     sched_spec = SchedSpec(type=lr_scheduler_type, factor=1.0, total_iters=args.steps)
@@ -230,6 +239,7 @@ def run_sweep(args, device: str):
         problem = {
             "mode": "sweep",
             "kind": kind,
+            "w_star": args.w_star,
             "n": args.n,
             "d_in": args.d_in,
             "d_out": args.d_out,
@@ -446,9 +456,7 @@ def run_plot(args):
             spectrum_dir = os.path.join(plot_dir, "grad_spectrum")
             os.makedirs(spectrum_dir, exist_ok=True)
             for key in spectrum_keys:
-                spectrum_savepath = os.path.join(
-                    spectrum_dir, f"{_safe(key)}.pdf"
-                )
+                spectrum_savepath = os.path.join(spectrum_dir, f"{_safe(key)}.pdf")
                 wrote = plot_grad_spectrum_quantiles(
                     results_list,
                     algo_key=key,
@@ -1365,14 +1373,15 @@ def run_table_ratios(args):
         save_json(args.table_out_json, out)
         print(f"\n[TABLE-RATIOS] wrote: {args.table_out_json}")
 
+
 def parse_args():
     p = argparse.ArgumentParser()
 
     p.add_argument(
         "--mode", choices=["sweep", "plot", "table", "table-ratios"], default="sweep"
     )
-    p.add_argument("--seed", type=int, default=0) 
-    p.add_argument("--n", type=int, default=128) # 
+    p.add_argument("--seed", type=int, default=0)
+    p.add_argument("--n", type=int, default=128)
     p.add_argument("--d_in", type=int, default=128)
     p.add_argument("--d_out", type=int, default=128)
     p.add_argument("--steps", type=int, default=500)
@@ -1416,6 +1425,11 @@ def parse_args():
             "spikes_2_0.9_0.1",
         ],
     )
+
+    p.add_argument("--w_star", default="random")
+    p.add_argument("--w_star_s_min", type=float, default=1e-3)
+    p.add_argument("--w_star_s_max", type=float, default=10.0)
+    p.add_argument("--w_star_alpha", type=float, default=10.0)
 
     # plot-mode options
     p.add_argument(

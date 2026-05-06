@@ -879,7 +879,9 @@ def _stack_metric(
             if "grad_spectrum_values" not in tr:
                 continue
             which = metric.replace("grad_spectrum_", "", 1)
-            rows.append(_grad_spectrum_summary(tr["grad_spectrum_values"], steps, which))
+            rows.append(
+                _grad_spectrum_summary(tr["grad_spectrum_values"], steps, which)
+            )
             continue
 
         if metric not in tr:
@@ -1236,9 +1238,7 @@ def plot_mean_ci_comparison(
     if show_grad_cond_num:
         axes_specs.append(("grad_cond_num", "cond(grad) (log)", True))
     has_grad_spectrum = any(
-        "grad_spectrum_values" in tr
-        for res in results_list
-        for tr in res.values()
+        "grad_spectrum_values" in tr for res in results_list for tr in res.values()
     )
     if has_grad_spectrum:
         axes_specs.append(("grad_spectrum_min", r"$\sigma_{\min}(\nabla)$ (log)", True))
@@ -1377,8 +1377,6 @@ def plot_mean_ci_comparison(
     if show:
         plt.show()
     plt.close(fig)
-
-
 
 
 @dataclass(frozen=True)

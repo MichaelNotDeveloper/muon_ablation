@@ -47,9 +47,11 @@ def grad_fro_norm(params):
         s += float((p.grad.detach() ** 2).sum().item())
     return math.sqrt(s)
 
-def get_matrix_singular_values(matrix : torch.Tensor):
+
+def get_matrix_singular_values(matrix: torch.Tensor):
     assert matrix.dim() == 2
     return torch.linalg.svdvals(matrix).detach().tolist()
+
 
 def get_sorted_spectrum_grad(params) -> list[list[float]]:
     spectre_list = []
@@ -58,7 +60,7 @@ def get_sorted_spectrum_grad(params) -> list[list[float]]:
             continue
         spectre_list.append(sorted(get_matrix_singular_values(p.grad)))
     return spectre_list
-    
+
 
 def condition_number(params):
     """
@@ -129,7 +131,7 @@ def run_trace(
         "lr0": lr0,
         "sched": sched_name,
         "grad_cond_num": gcondnums,
-        "grad_spectrum_values" : gspectrum_values
+        "grad_spectrum_values": gspectrum_values,
     }
     if errF:
         out["err_F"] = errF

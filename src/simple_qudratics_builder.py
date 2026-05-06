@@ -1,6 +1,24 @@
 # stc/simple_quadratics_builder.py
 import math
 import torch
+from typing import Optional, Any
+
+
+def generate_w_star(
+    d_in: int, d_out: int, device, w_star_type: str, args: Optional[Any] = None
+) -> torch.Tensor:
+    if w_star_type == "random":
+        return torch.randn(d_in, d_out, device=device) / math.sqrt(d_in)
+    elif w_star_type.startswith("rand_"):
+        assert d_in == d_out
+        rand_type = w_star_type.split("rand_", 1)[1]
+        if args is None:
+            eigs = make_s(d_in, rand_type, device=device)
+        else:
+            eigs = make_s(d_in, rand_type, args.w_star_s_max, args.w_star_s_min, args.w_star_alpha, device)
+        return make_X_from_singular_values(d_in, d_in, eigs, device)
+    else:
+        raise ValueError(f"Wrong w_start argument, got {w_star_type}")
 
 
 def _trunc_std_normal(numel: int, k: float, device: str):
