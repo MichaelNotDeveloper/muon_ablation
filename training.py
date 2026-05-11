@@ -230,6 +230,9 @@ def run_sweep(args, device: str):
             W_star=W_star,
             seed=instance_seed,
             alpha=args.alpha,
+            reg_type=args.reg_type,
+            reg_alpha=args.reg_alpha, 
+            grad_reg_type=args.grad_reg_type,
         )
 
         inst_dir = os.path.join(root, instance_dirname(args, kind, instance_seed))
@@ -1430,6 +1433,10 @@ def parse_args():
     p.add_argument("--w_star_s_min", type=float, default=1e-3)
     p.add_argument("--w_star_s_max", type=float, default=10.0)
     p.add_argument("--w_star_alpha", type=float, default=10.0)
+    
+    p.add_argument("--reg_type", default=None)
+    p.add_argument("--reg_alpha", type=float, default=1e-4)
+    p.add_argument("--grad_reg_type", default="zero")
 
     # plot-mode options
     p.add_argument(

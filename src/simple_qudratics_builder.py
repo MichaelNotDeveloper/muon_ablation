@@ -2,6 +2,8 @@
 import math
 import torch
 from typing import Optional, Any
+from .projections import polar_exact
+from .regularisations import reg
 
 
 def generate_w_star(
@@ -15,7 +17,14 @@ def generate_w_star(
         if args is None:
             eigs = make_s(d_in, rand_type, device=device)
         else:
-            eigs = make_s(d_in, rand_type, args.w_star_s_max, args.w_star_s_min, args.w_star_alpha, device)
+            eigs = make_s(
+                d_in,
+                rand_type,
+                args.w_star_s_max,
+                args.w_star_s_min,
+                args.w_star_alpha,
+                device,
+            )
         return make_X_from_singular_values(d_in, d_in, eigs, device)
     else:
         raise ValueError(f"Wrong w_start argument, got {w_star_type}")
@@ -266,7 +275,19 @@ def make_X_from_singular_values(n, d_in, s, device, dtype=torch.float32):
 
 
 def build_instance(
-    kind, s_min, s_max, n, d_in, d_out, device, W_star, seed=0, alpha=1.0
+    kind,
+    s_min,
+    s_max,
+    n,
+    d_in,
+    d_out,
+    device,
+    W_star,
+    seed=0,
+    alpha=1.0,
+    reg_type=None,
+    reg_alpha=1e-4,
+    grad_reg_type="zero",
 ):
     """
     Specify s_min/s_max as the desired min/max eigenvalues of A, where
@@ -295,7 +316,8 @@ def build_instance(
 
     def loss_fn(params):
         (W,) = params
-        return 0.5 * (W * (A @ W)).sum() + (W * B).sum() + c
+        loss = 0.5 * (W * (A @ W)).sum() + (W * B).sum() + c
+        return 1 + loss + reg_alpha * reg(W, reg_type, grad_reg_type)
 
     with torch.no_grad():
         evals = torch.linalg.eigvalsh(0.5 * (A + A.T))

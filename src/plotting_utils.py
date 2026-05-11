@@ -15,12 +15,12 @@ from dataclasses import dataclass
 # Pretty display names + optional filtering (set to None to drop)
 KIND_RENAME = {
     "flat_max": "max_spiked",
-    "flat_min": "min_spiked",
+    "flat_min": "min_spiked",  # muon wins
     "gaussian": "gaussian",
     "geometric_0.9": "geometric_decay_to_max",
     "linear_decay_to_smax": "linear_decay_to_max",
     "linear_decay_faster": "linear_decay_to_max",
-    "u_shaped_strong": "u_shaped",
+    "u_shaped_strong": "u_shaped",  # muon wins
     "u_shaped_weak": None,  # drop
     "uniform": "uniform",
 }
