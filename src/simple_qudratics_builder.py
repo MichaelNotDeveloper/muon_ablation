@@ -288,6 +288,7 @@ def build_instance(
     reg_type=None,
     reg_alpha=1e-4,
     grad_reg_type="zero",
+    batch_size=None,
 ):
     """
     Specify s_min/s_max as the desired min/max eigenvalues of A, where
@@ -314,13 +315,36 @@ def build_instance(
     B = -(X.T @ Y) / scale
     c = 0.5 * (Y * Y).sum() / scale
 
+    batch_counter = 0
     def loss_fn(params):
         (W,) = params
         loss = 0.5 * (W * (A @ W)).sum() + (W * B).sum() + c
-        return 1 + loss + reg_alpha * reg(W, reg_type, grad_reg_type)
+        return loss + reg_alpha * reg(W, reg_type, grad_reg_type)
+    
+    def loss_batch_linear_fn(params):
+        nonlocal batch_counter
+        (W,) = params
+        start = batch_counter * batch_size
+        end = min(start + batch_size, X.shape[0])
+        X_batch = X[start:end]
+        Y_batch = Y[start:end]
+        scale_batch = (end - start) * d_out
+
+        A_batch = (X_batch.T @ X_batch)
+        B_batch = -(X_batch.T @ Y_batch)
+        c_batch = 0.5 * (Y_batch * Y_batch).sum()
+
+        loss = (0.5 * (W * (A_batch @ W)).sum() + (W * B_batch).sum() + c_batch) / scale_batch
+        loss += reg_alpha * reg(W, reg_type, grad_reg_type)
+
+        batch_counter += 1
+        if end == X.shape[0]:
+            batch_counter = 0
+        return loss
 
     with torch.no_grad():
         evals = torch.linalg.eigvalsh(0.5 * (A + A.T))
         kappa_actual = float((evals.max() / evals.min()).item())
 
-    return loss_fn, X, Y, A, kappa_actual, evals
+    real_loss = loss_fn if batch_size is None else loss_batch_linear_fn
+    return real_loss, X, Y, A, kappa_actual, evals
