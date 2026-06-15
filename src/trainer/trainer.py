@@ -1,6 +1,6 @@
 import torch
 
-from src.metrics.matrix_metrics import collect_weighted_matrix_metrics
+from src.metrics.analysis_metrics import collect_epoch_analysis_metrics
 from src.metrics.tracker import MetricTracker
 from src.trainer.base_trainer import BaseTrainer
 
@@ -42,13 +42,16 @@ class Trainer(BaseTrainer):
 
         return batch
 
+    def _append_analysis_metrics(self, logs, epoch, part=None):
+        analysis_logs = collect_epoch_analysis_metrics(self._unwrap_model(), self.config)
+        for metric_name, value in analysis_logs.items():
+            logs[metric_name] = value
+            scalar_name = f"{part}_{metric_name}" if part else metric_name
+            self.writer.add_scalar(scalar_name, value, epoch)
+
     def _train_epoch(self, epoch):
         logs = super()._train_epoch(epoch)
-        matrix_summary = collect_weighted_matrix_metrics(self._unwrap_model())
-        for metric_name, value in matrix_summary.items():
-            if metric_name.endswith("_weighted_mean"):
-                logs[metric_name] = value
-                self.writer.add_scalar(metric_name, value, epoch)
+        self._append_analysis_metrics(logs, epoch)
         return logs
 
     def _evaluation_epoch(self, epoch, part, dataloader):
@@ -62,12 +65,7 @@ class Trainer(BaseTrainer):
             if hasattr(met, "value"):
                 val_logs[met.name] = met.value()
 
-        matrix_summary = collect_weighted_matrix_metrics(self._unwrap_model())
-        for metric_name, value in matrix_summary.items():
-            if metric_name.endswith("_weighted_mean"):
-                val_logs[metric_name] = value
-                self.writer.add_scalar(f"{part}_{metric_name}", value, epoch)
-
+        self._append_analysis_metrics(val_logs, epoch, part=part)
         return val_logs
 
     def _unwrap_model(self):

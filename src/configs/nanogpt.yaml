@@ -2,7 +2,7 @@ defaults:
   - model: nanogpt
   - writer: wandb
   - metrics: lm_training
-  - datasets: openwebtext
+  - datasets: openwebtext_10k
   - dataloader: train_val_dataloaders
   - optimizer: adamw
   - _self_
@@ -43,6 +43,9 @@ trainer:
   accumulation_steps: 1
   max_grad_norm: 1.0
   skip_oom: true
+  compute_matrix_metrics: true
+  compute_topsubspace_metrics: false
+  topsubspace_k: 5
 
 writer:
   run_name: "nanogpt"

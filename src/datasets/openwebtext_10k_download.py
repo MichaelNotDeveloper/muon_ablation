@@ -10,31 +10,32 @@ from src.utils.io_utils import ROOT_PATH
 
 logger = logging.getLogger(__name__)
 
-OPENWEBTEXT_DATASET = "Skylion007/openwebtext"
-DEFAULT_TOKENIZER = "gpt2"
+OPENWEBTEXT_10K_DATASET = "stas/openwebtext-10k"
 
 
-class OpenWebTextDownload(BaseTextDataset):
+class OpenWebText10kDownload(BaseTextDataset):
     """
-    Full OpenWebText dataset downloaded via HuggingFace datasets.
+    10K subset of OpenWebText from HuggingFace.
+
+    https://huggingface.co/datasets/stas/openwebtext-10k
     """
 
     def __init__(
         self,
         part="train",
         data_dir=None,
-        dataset_name=OPENWEBTEXT_DATASET,
-        tokenizer_name=DEFAULT_TOKENIZER,
+        dataset_name=OPENWEBTEXT_10K_DATASET,
+        tokenizer_name="gpt2",
         val_ratio=0.01,
         max_seq_len=512,
         min_seq_len=8,
         limit=None,
         shuffle_index=False,
         download_limit=None,
-        trust_remote_code=False,
+        trust_remote_code=True,
     ):
         if data_dir is None:
-            data_dir = ROOT_PATH / "data" / "datasets" / "openwebtext"
+            data_dir = ROOT_PATH / "data" / "datasets" / "openwebtext_10k"
         else:
             data_dir = Path(data_dir)
 
