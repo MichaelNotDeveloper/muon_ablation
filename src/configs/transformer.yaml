@@ -4,7 +4,7 @@ defaults:
   - metrics: lm_training
   - datasets: openwebtext
   - dataloader: train_val_dataloaders
-  - optimizers: adamw
+  - optimizer: adamw
   - _self_
 
 lr_scheduler:

@@ -55,7 +55,7 @@ def main(config):
         for metric_config in config.metrics.get(metric_type, []):
             metrics[metric_type].append(instantiate(metric_config))
 
-    optimizer = instantiate(config.optimizers, model=model)
+    optimizer = instantiate(config.optimizer, model=model)
 
     lr_scheduler = instantiate(config.lr_scheduler, optimizer=optimizer)
 

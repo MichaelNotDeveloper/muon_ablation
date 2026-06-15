@@ -508,7 +508,7 @@ class BaseTrainer:
 
         # load optimizer state from checkpoint only when optimizer type is not changed.
         if (
-            checkpoint["config"].get("optimizers") != self.config.get("optimizers")
+            checkpoint["config"].get("optimizer") != self.config.get("optimizer")
             or checkpoint["config"]["lr_scheduler"] != self.config["lr_scheduler"]
         ):
             self.logger.warning(

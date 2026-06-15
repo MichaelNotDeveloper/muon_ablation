@@ -37,15 +37,15 @@ uv run train.py --config-name nanogpt
 Switch optimizer via CLI:
 
 ```bash
-uv run train.py --config-name lstm optimizers=muon
-uv run train.py --config-name transformer optimizers=muon
+uv run train.py --config-name lstm optimizer=muon
+uv run train.py --config-name transformer optimizer=muon
 ```
 
 Useful overrides:
 
 ```bash
 uv run train.py --config-name lstm \
-  optimizers=muon \
+  optimizer=muon \
   trainer.n_epochs=20 \
   datasets.train.download_limit=50000 \
   writer.run_name=my_run \
@@ -58,9 +58,9 @@ See [`scripts/demo.ipynb`](scripts/demo.ipynb) for a walkthrough that clones the
 
 ## Suggested experiments
 
-- **Learning-rate sweep**: `optimizers.lr=1e-4,3e-4,1e-3` or `optimizers.muon.lr=...`
-- **Muon projection**: `optimizers.muon.projection=exact` vs `optimizers.muon.projection=ns`
-- **Momentum / Nesterov**: `optimizers.muon.momentum=0.9 optimizers.muon.nesterov=true`
+- **Learning-rate sweep**: `optimizer.lr=1e-4,3e-4,1e-3` or `optimizer.muon.lr=...`
+- **Muon projection**: `optimizer.muon.projection=exact` vs `optimizer.muon.projection=ns`
+- **Momentum / Nesterov**: `optimizer.muon.momentum=0.9 optimizer.muon.nesterov=true`
 - **Matrix metrics**: compare `condition_number_weighted_mean` and `orthogonality_error_weighted_mean` in W&B logs
 - **Scale**: increase `datasets.train.download_limit`, `trainer.n_epochs`, model size in `src/configs/model/`
 
@@ -68,9 +68,9 @@ See [`scripts/demo.ipynb`](scripts/demo.ipynb) for a walkthrough that clones the
 
 ```
 src/
-  configs/          # Hydra configs (lstm, transformer, nanogpt, optimizers, …)
+  configs/          # Hydra configs (lstm, transformer, nanogpt, optimizer, …)
   model/            # LSTM, Transformer, NanoGPT
-  optimizers/       # Muon, AdamW builders, projections
+  optimizers/       # Muon, AdamW Python implementations
   datasets/         # OpenWebText download + text dataset
   metrics/          # Perplexity, matrix metrics
   trainer/          # Training loop (AMP, schedulers, checkpointing)
