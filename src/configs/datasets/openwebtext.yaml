@@ -1,0 +1,11 @@
+train:
+  _target_: src.datasets.OpenWebTextDownload
+  part: train
+  max_seq_len: 512
+  limit: null
+  download_limit: 50000
+val:
+  _target_: src.datasets.OpenWebTextDownload
+  part: val
+  max_seq_len: 512
+  limit: 1000

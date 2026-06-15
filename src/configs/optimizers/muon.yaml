@@ -1,0 +1,12 @@
+_target_: src.optimizers.factory.build_muon_hybrid
+muon:
+  lr: 1e-2
+  momentum: 0.0
+  nesterov: false
+  projection: exact
+  ns_steps: 5
+  eps: 1e-7
+adam:
+  lr: 1e-3
+  betas: [0.9, 0.999]
+  weight_decay: 0.01

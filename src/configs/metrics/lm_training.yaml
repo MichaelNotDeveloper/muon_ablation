@@ -1,0 +1,5 @@
+train: []
+inference:
+  - _target_: src.metrics.Perplexity
+    name: perplexity
+    pad_id: ${pad_id}

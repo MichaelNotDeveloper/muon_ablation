@@ -1,0 +1,48 @@
+defaults:
+  - model: lstm
+  - writer: wandb
+  - metrics: lm_training
+  - datasets: openwebtext
+  - dataloader: train_val_dataloaders
+  - optimizer: adamw
+  - _self_
+
+lr_scheduler:
+  _target_: torch.optim.lr_scheduler.OneCycleLR
+  max_lr: 1e-3
+  pct_start: 0.02
+  div_factor: 10.0
+  final_div_factor: 10.0
+  steps_per_epoch: ${trainer.epoch_len}
+  epochs: ${trainer.n_epochs}
+  anneal_strategy: cos
+
+loss_function:
+  _target_: src.loss.NLLLoss
+
+batch_size: 32
+num_workers: 4
+pad_id: 0
+vocab_size: 50304
+
+trainer:
+  log_step: 50
+  n_epochs: 10
+  epoch_len: 500
+  device_tensors: ["input_ids", "targets"]
+  resume_from: null
+  device: auto
+  override: true
+  monitor: "min val_perplexity"
+  save_period: 100000
+  early_stop: ${trainer.n_epochs}
+  save_dir: "saved"
+  parallel: false
+  seed: 1
+  dtype: float32
+  accumulation_steps: 1
+  max_grad_norm: 1.0
+  skip_oom: true
+
+writer:
+  run_name: "lstm"

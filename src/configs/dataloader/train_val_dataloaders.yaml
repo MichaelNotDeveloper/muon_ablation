@@ -1,0 +1,13 @@
+train_dataloader:
+  _target_: torch.utils.data.DataLoader
+  dataset: ${datasets.train}
+  batch_size: ${batch_size}
+  num_workers: ${num_workers}
+  pin_memory: True
+
+val_dataloader:
+  _target_: torch.utils.data.DataLoader
+  dataset: ${datasets.val}
+  batch_size: ${batch_size}
+  num_workers: ${num_workers}
+  pin_memory: True

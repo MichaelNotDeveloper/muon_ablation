@@ -1,0 +1,9 @@
+_target_: src.model.TransformerLanguageModel
+vocab_size: ${vocab_size}
+d_model: 192
+nhead: 4
+num_layers: 3
+dim_feedforward: 384
+dropout: 0.2
+max_len: 512
+pad_id: ${pad_id}
