@@ -5,7 +5,7 @@ from pathlib import Path
 import torch
 
 from src.datasets.base_text_dataset import BaseTextDataset
-from src.datasets.text_download_utils import prepare_tokenized_text_dataset
+from src.datasets.text_download_utils import prepare_openwebtext_10k_dataset
 from src.utils.io_utils import ROOT_PATH
 
 logger = logging.getLogger(__name__)
@@ -15,8 +15,9 @@ OPENWEBTEXT_10K_DATASET = "stas/openwebtext-10k"
 
 class OpenWebText10kDownload(BaseTextDataset):
     """
-    10K subset of OpenWebText from HuggingFace.
+    10K subset of OpenWebText.
 
+    Downloads directly from the HuggingFace CDN (no dataset loading script):
     https://huggingface.co/datasets/stas/openwebtext-10k
     """
 
@@ -32,7 +33,6 @@ class OpenWebText10kDownload(BaseTextDataset):
         limit=None,
         shuffle_index=False,
         download_limit=None,
-        trust_remote_code=True,
     ):
         if data_dir is None:
             data_dir = ROOT_PATH / "data" / "datasets" / "openwebtext_10k"
@@ -46,14 +46,13 @@ class OpenWebText10kDownload(BaseTextDataset):
         tokens_dir = data_dir / "tokens"
 
         if not index_path.exists():
-            prepare_tokenized_text_dataset(
+            prepare_openwebtext_10k_dataset(
                 data_dir=data_dir,
                 dataset_name=dataset_name,
                 tokenizer_name=tokenizer_name,
                 val_ratio=val_ratio,
                 download_limit=download_limit,
                 min_seq_len=min_seq_len,
-                trust_remote_code=trust_remote_code,
             )
 
         index = json.loads(index_path.read_text())

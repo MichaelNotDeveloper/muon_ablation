@@ -3,6 +3,7 @@ import logging
 from pathlib import Path
 
 import torch
+from datasets import load_dataset
 
 from src.datasets.base_text_dataset import BaseTextDataset
 from src.datasets.text_download_utils import prepare_tokenized_text_dataset
@@ -31,7 +32,6 @@ class OpenWebTextDownload(BaseTextDataset):
         limit=None,
         shuffle_index=False,
         download_limit=None,
-        trust_remote_code=False,
     ):
         if data_dir is None:
             data_dir = ROOT_PATH / "data" / "datasets" / "openwebtext"
@@ -45,14 +45,13 @@ class OpenWebTextDownload(BaseTextDataset):
         tokens_dir = data_dir / "tokens"
 
         if not index_path.exists():
-            prepare_tokenized_text_dataset(
+            self._download_and_prepare(
                 data_dir=data_dir,
                 dataset_name=dataset_name,
                 tokenizer_name=tokenizer_name,
                 val_ratio=val_ratio,
                 download_limit=download_limit,
                 min_seq_len=min_seq_len,
-                trust_remote_code=trust_remote_code,
             )
 
         index = json.loads(index_path.read_text())
@@ -73,3 +72,31 @@ class OpenWebTextDownload(BaseTextDataset):
     def load_tokens(self, data_dict):
         token_path = self.tokens_dir / f"{data_dict['text_id']}.pt"
         return torch.load(token_path, weights_only=True)
+
+    @staticmethod
+    def _download_and_prepare(
+        data_dir,
+        dataset_name,
+        tokenizer_name,
+        val_ratio,
+        download_limit,
+        min_seq_len=8,
+    ):
+        logger.info(f"Downloading {dataset_name} from HuggingFace...")
+        dataset = load_dataset(dataset_name, split="train", streaming=False)
+        if download_limit is not None:
+            dataset = dataset.select(range(min(download_limit, len(dataset))))
+
+        texts = [
+            example.get("text", "").strip()
+            for example in dataset
+            if example.get("text", "").strip()
+        ]
+        prepare_tokenized_text_dataset(
+            data_dir=data_dir,
+            texts=texts,
+            dataset_name=dataset_name,
+            tokenizer_name=tokenizer_name,
+            val_ratio=val_ratio,
+            min_seq_len=min_seq_len,
+        )
