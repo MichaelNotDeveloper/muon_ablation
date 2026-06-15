@@ -1,4 +1,4 @@
-class MultiOptimizer:
+class Multioptimizers:
     """
     Wrapper that steps multiple optimizers together (e.g. Muon for 2D + Adam for rest).
     """
