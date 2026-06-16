@@ -34,12 +34,20 @@ def concentration_c(d: torch.Tensor, u_flat: torch.Tensor) -> float:
 
 def top_k_subspace_basis(weight: torch.Tensor, k: int) -> torch.Tensor:
     """
-    Top-k left singular vectors of a 2D matrix, shape (numel_rows, k).
+    Top-k rank-1 directions in flattened parameter space, shape (numel, k).
+
+    For each singular triplet (u_i, s_i, v_i), build direction vec(u_i v_i^T),
+    which lies in the same space as weight.reshape(-1).
     """
     mat = _to_float32_cpu(weight)
-    u, _, _ = torch.linalg.svd(mat, full_matrices=False)
-    k_eff = min(k, u.shape[1])
-    return u[:, :k_eff]
+    u, _, vh = torch.linalg.svd(mat, full_matrices=False)
+    k_eff = min(k, u.shape[1], vh.shape[0])
+    basis_cols = []
+    for i in range(k_eff):
+        rank1_dir = torch.outer(u[:, i], vh[i, :]).reshape(-1)
+        rank1_dir = rank1_dir / rank1_dir.norm().clamp_min(1e-30)
+        basis_cols.append(rank1_dir)
+    return torch.stack(basis_cols, dim=1)
 
 
 def topsubspace_metrics(weight: torch.Tensor, k: int = 5):
