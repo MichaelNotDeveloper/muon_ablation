@@ -55,7 +55,8 @@ class BaseTextDataset(Dataset):
     def _filter_records_from_dataset(index, max_seq_len):
         initial_size = len(index)
         if max_seq_len is not None:
-            exceeds_seq_len = np.array([el["seq_len"] for el in index]) > max_seq_len
+            input_lens = np.array([el["seq_len"] - 1 for el in index])
+            exceeds_seq_len = input_lens > max_seq_len
             _total = exceeds_seq_len.sum()
             logger.info(
                 f"{_total} ({_total / initial_size:.1%}) records are longer than "

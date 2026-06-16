@@ -1,25 +1,35 @@
-class MultiOptimizer:
+import torch
+
+
+class MultiOptimizer(torch.optim.Optimizer):
     """
     Wrapper that steps multiple optimizers together (e.g. Muon for 2D + Adam for rest).
     """
 
     def __init__(self, optimizers):
         self.optimizers = list(optimizers)
+        param_groups = []
+        defaults = {}
+        for optimizer in self.optimizers:
+            param_groups.extend(optimizer.param_groups)
+            defaults.update(optimizer.defaults)
+        super().__init__(param_groups, defaults=defaults)
 
     def zero_grad(self, set_to_none=True):
         for optimizer in self.optimizers:
             optimizer.zero_grad(set_to_none=set_to_none)
 
-    def step(self):
+    @torch.no_grad()
+    def step(self, closure=None):
+        loss = None
+        if closure is not None:
+            with torch.enable_grad():
+                loss = closure()
+
         for optimizer in self.optimizers:
             optimizer.step()
 
-    @property
-    def param_groups(self):
-        groups = []
-        for optimizer in self.optimizers:
-            groups.extend(optimizer.param_groups)
-        return groups
+        return loss
 
     def state_dict(self):
         return {

@@ -7,6 +7,12 @@ defaults:
   - optimizer: adamw
   - _self_
 
+datasets:
+  train:
+    max_seq_len: ${model.block_size}
+  val:
+    max_seq_len: ${model.block_size}
+
 lr_scheduler:
   _target_: torch.optim.lr_scheduler.OneCycleLR
   max_lr: 1e-3
