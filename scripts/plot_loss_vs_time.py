@@ -11,15 +11,8 @@ matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 
 
-DEFAULT_LRS = [1e-5, 2e-5, 5e-5, 1e-4, 2e-4, 5e-4, 1e-3, 2e-3, 5e-3, 1e-2]
-
-
-def build_run_names(lrs):
-    return {
-        f"{model_name}_{lr}"
-        for model_name in ["lstm", "transformer", "nanogpt"]
-        for lr in lrs
-    }
+def build_run_names():
+    return {"adamw_time", "muon_time"}
 
 
 def _resolve_entity(api, config):
@@ -42,7 +35,7 @@ def _resolve_entity(api, config):
 
 @hydra.main(version_base=None, config_path="../src/configs", config_name="lstm")
 def main(config):
-    run_names = build_run_names(DEFAULT_LRS)
+    run_names = build_run_names()
     project = config.writer.project_name
 
     api = wandb.Api()
@@ -52,27 +45,50 @@ def main(config):
     plt.figure(figsize=(14, 8))
     seen = 0
     for run in runs:
-        history = run.history(
-            keys=["epoch_elapsed_seconds_epoch", "train_loss_epoch", "val_loss_epoch"],
-            pandas=True,
+        history = run.history(pandas=True)
+        time_key = next(
+            (
+                key
+                for key in ("epoch_elapsed_seconds_epoch", "epoch_elapsed_seconds")
+                if key in history.columns
+            ),
+            None,
         )
-        history = history.dropna(subset=["epoch_elapsed_seconds_epoch"])
+        if time_key is None:
+            continue
+        history = history.dropna(subset=[time_key])
         if history.empty:
             continue
 
-        x = history["epoch_elapsed_seconds_epoch"].values
-        if "train_loss_epoch" in history.columns:
+        x = history[time_key].values
+        train_key = next(
+            (
+                key
+                for key in ("train_loss_epoch", "loss_train", "loss")
+                if key in history.columns
+            ),
+            None,
+        )
+        val_key = next(
+            (
+                key
+                for key in ("val_loss_epoch", "loss_val", "val_loss")
+                if key in history.columns
+            ),
+            None,
+        )
+        if train_key is not None:
             plt.plot(
                 x,
-                history["train_loss_epoch"].values,
+                history[train_key].values,
                 alpha=0.6,
                 linestyle="-",
                 label=f"{run.name} train",
             )
-        if "val_loss_epoch" in history.columns:
+        if val_key is not None:
             plt.plot(
                 x,
-                history["val_loss_epoch"].values,
+                history[val_key].values,
                 alpha=0.6,
                 linestyle="--",
                 label=f"{run.name} val",
@@ -90,6 +106,20 @@ def main(config):
     save_dir.mkdir(parents=True, exist_ok=True)
     output_path = save_dir / "loss_vs_time.png"
     plt.savefig(output_path, dpi=180, bbox_inches="tight")
+    plt.close()
+
+    mode = config.writer.get("mode", "online")
+    if mode != "offline":
+        log_run = wandb.init(
+            project=project,
+            entity=entity,
+            name="loss_vs_time_plot",
+            job_type="analysis",
+            reinit=True,
+        )
+        wandb.log({"loss_vs_time": wandb.Image(str(output_path))})
+        log_run.finish()
+
     print(f"Plotted {seen} runs.")
     print(f"Saved figure to {output_path}")
 
