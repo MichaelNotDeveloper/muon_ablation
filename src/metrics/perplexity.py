@@ -23,16 +23,18 @@ class Perplexity(BaseMetric):
 
     def __call__(self, logits, targets, pad_id=None, **batch):
         pad_id = self.pad_id if pad_id is None else pad_id
-        loss = F.cross_entropy(
+        loss_sum = F.cross_entropy(
             logits.reshape(-1, logits.size(-1)),
             targets.reshape(-1),
             ignore_index=pad_id,
             reduction="sum",
         )
         n_tokens = (targets != pad_id).sum().item()
-        self.total_loss += loss.item()
+        self.total_loss += loss_sum.item()
         self.total_tokens += n_tokens
-        return 0.0
+        if n_tokens == 0:
+            return float("nan")
+        return math.exp(loss_sum.item() / n_tokens)
 
     def value(self):
         if self.total_tokens == 0:
