@@ -17,9 +17,9 @@ def rho_k(d: torch.Tensor, u_flat: torch.Tensor) -> float:
     """
     Fraction of ||d||^2 captured by the subspace spanned by columns of u_flat.
     """
-    d_flat = d.reshape(-1).float()
+    d_flat = d.detach().reshape(-1).float().cpu()
     denom = torch.dot(d_flat, d_flat).clamp_min(1e-30)
-    coeffs = u_flat.float().T @ d_flat
+    coeffs = u_flat.detach().float().cpu().T @ d_flat
     return float((coeffs.square().sum() / denom).detach().cpu())
 
 

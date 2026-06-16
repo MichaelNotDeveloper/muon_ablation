@@ -77,7 +77,17 @@ class BaseTrainer:
         self.lr_scheduler = lr_scheduler
         self.batch_transforms = batch_transforms
         self.accumulation_steps = config.trainer.get("accumulation_steps", 1)
-        self.training_dtype = str_to_dtype(dtype)
+        requested_dtype = str_to_dtype(dtype)
+        # oneDNN LSTM kernels can fail with bfloat16 on CPU. Keep bf16 for CUDA,
+        # but safely fall back to float32 on CPU.
+        if self.device == "cpu" and requested_dtype == torch.bfloat16:
+            self.logger.warning(
+                "bfloat16 on CPU is not fully supported for all ops; "
+                "falling back to float32 for training stability."
+            )
+            self.training_dtype = torch.float32
+        else:
+            self.training_dtype = requested_dtype
 
         is_auto_cast_enabled = self.training_dtype != torch.float32
 
