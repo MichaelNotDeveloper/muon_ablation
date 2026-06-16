@@ -2,7 +2,6 @@ import logging
 import random
 from copy import deepcopy
 
-import numpy as np
 import torch
 from torch.utils.data import Dataset
 
@@ -26,7 +25,7 @@ class BaseTextDataset(Dataset):
         shuffle_index=False,
     ):
         self._assert_index_is_valid(index)
-        index = self._filter_records_from_dataset(index, max_seq_len)
+        index = self._chunk_records_to_max_seq_len(index, max_seq_len)
         index = self._shuffle_and_limit_index(index, limit, shuffle_index)
         if not shuffle_index:
             index = self._sort_index(index)
@@ -37,6 +36,9 @@ class BaseTextDataset(Dataset):
     def __getitem__(self, ind):
         data_dict = deepcopy(self._index[ind])
         tokens = self.load_tokens(data_dict)
+        chunk_start = data_dict.get("chunk_start", 0)
+        chunk_len = data_dict["seq_len"]
+        tokens = tokens[chunk_start : chunk_start + chunk_len]
         input_ids = tokens[:-1]
         targets = tokens[1:]
         return {
@@ -52,26 +54,43 @@ class BaseTextDataset(Dataset):
         raise NotImplementedError()
 
     @staticmethod
-    def _filter_records_from_dataset(index, max_seq_len):
-        initial_size = len(index)
-        if max_seq_len is not None:
-            input_lens = np.array([el["seq_len"] - 1 for el in index])
-            exceeds_seq_len = input_lens > max_seq_len
-            _total = exceeds_seq_len.sum()
-            logger.info(
-                f"{_total} ({_total / initial_size:.1%}) records are longer than "
-                f"{max_seq_len} tokens. Excluding them."
-            )
-        else:
-            exceeds_seq_len = False
+    def _chunk_records_to_max_seq_len(index, max_seq_len, min_seq_len=8):
+        """
+        Fit each example to max_seq_len input tokens.
 
-        if exceeds_seq_len is not False and exceeds_seq_len.any():
-            _total = exceeds_seq_len.sum()
-            index = [el for el, exclude in zip(index, exceeds_seq_len) if not exclude]
+        Short sequences are kept as-is. Longer ones are split into contiguous,
+        non-overlapping chunks (standard GPT-style block packing).
+        """
+        if max_seq_len is None:
+            return index
+
+        expanded = []
+        long_records = 0
+        for entry in index:
+            input_len = entry["seq_len"] - 1
+            if input_len <= max_seq_len:
+                expanded.append(entry)
+                continue
+
+            long_records += 1
+            for chunk_start in range(0, input_len, max_seq_len):
+                chunk_input_len = min(max_seq_len, input_len - chunk_start)
+                if chunk_input_len < min_seq_len:
+                    continue
+                expanded.append(
+                    {
+                        "text_id": entry["text_id"],
+                        "seq_len": chunk_input_len + 1,
+                        "chunk_start": chunk_start,
+                    }
+                )
+
+        if long_records:
             logger.info(
-                f"Filtered {_total} ({_total / initial_size:.1%}) records from dataset"
+                f"Chunked {long_records} long records into {len(expanded)} examples "
+                f"of up to {max_seq_len} tokens"
             )
-        return index
+        return expanded
 
     @staticmethod
     def _assert_index_is_valid(index):
