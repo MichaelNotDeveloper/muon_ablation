@@ -2,10 +2,13 @@ import os
 from pathlib import Path
 
 import hydra
-import matplotlib.pyplot as plt
+import matplotlib
 import wandb
 
 from src.utils.io_utils import ROOT_PATH
+
+matplotlib.use("Agg")
+import matplotlib.pyplot as plt
 
 
 DEFAULT_LRS = [1e-5, 2e-5, 5e-5, 1e-4, 2e-4, 5e-4, 1e-3, 2e-3, 5e-3, 1e-2]
