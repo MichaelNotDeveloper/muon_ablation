@@ -167,6 +167,15 @@ class CometMLWriter:
             step=self.step,
         )
 
+    def log_dict(self, metrics):
+        """
+        Log multiple scalars at the current step.
+
+        Args:
+            metrics (dict): mapping from metric name to scalar value.
+        """
+        self.add_scalars(metrics)
+
     def add_image(self, image_name, image):
         """
         Log an image to the experiment tracker.
