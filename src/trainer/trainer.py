@@ -44,10 +44,12 @@ class Trainer(BaseTrainer):
 
     def _append_analysis_metrics(self, logs, epoch, part=None):
         analysis_logs = collect_epoch_analysis_metrics(self._unwrap_model(), self.config)
+        if part is None:
+            self.writer.set_step(epoch * self.epoch_len - 1, "train")
         for metric_name, value in analysis_logs.items():
             logs[metric_name] = value
             scalar_name = f"{part}_{metric_name}" if part else metric_name
-            self.writer.add_scalar(scalar_name, value, epoch)
+            self.writer.add_scalar(scalar_name, value)
 
     def _train_epoch(self, epoch):
         logs = super()._train_epoch(epoch)
