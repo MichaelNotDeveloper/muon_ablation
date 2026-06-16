@@ -39,7 +39,7 @@ trainer:
   save_dir: "saved"
   parallel: false
   seed: 1
-  dtype: float32
+  dtype: bfloat16
   accumulation_steps: 1
   max_grad_norm: 1.0
   skip_oom: true

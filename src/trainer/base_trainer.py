@@ -1,4 +1,5 @@
 from abc import abstractmethod
+import time
 
 import torch
 from numpy import inf
@@ -175,13 +176,29 @@ class BaseTrainer:
         and saving the best checkpoint).
         """
         not_improved_count = 0
+        train_start_time = time.time()
         for epoch in range(self.start_epoch, self.epochs + 1):
             self._last_epoch = epoch
             result = self._train_epoch(epoch)
+            epoch_elapsed_seconds = time.time() - train_start_time
 
             # save logged information into logs dict
             logs = {"epoch": epoch}
             logs.update(result)
+            logs["epoch_elapsed_seconds"] = epoch_elapsed_seconds
+
+            # Keep epoch-level loss/time aligned for time-vs-loss plots.
+            self.writer.set_step(epoch * self.epoch_len, "epoch")
+            epoch_scalars = {"epoch_elapsed_seconds": epoch_elapsed_seconds}
+            if "loss" in logs:
+                epoch_scalars["train_loss"] = logs["loss"]
+            if "val_loss" in logs:
+                epoch_scalars["val_loss"] = logs["val_loss"]
+            if hasattr(self.writer, "log_dict"):
+                self.writer.log_dict(epoch_scalars)
+            else:
+                for name, value in epoch_scalars.items():
+                    self.writer.add_scalar(name, value)
 
             # print logged information to the screen
             for key, value in logs.items():

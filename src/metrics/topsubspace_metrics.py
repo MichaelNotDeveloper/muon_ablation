@@ -9,13 +9,17 @@ import numpy as np
 import torch
 
 
+def _to_float32_cpu(weight: torch.Tensor) -> torch.Tensor:
+    return weight.detach().float().cpu()
+
+
 def rho_k(d: torch.Tensor, u_flat: torch.Tensor) -> float:
     """
     Fraction of ||d||^2 captured by the subspace spanned by columns of u_flat.
     """
-    d_flat = d.reshape(-1).double()
+    d_flat = d.reshape(-1).float()
     denom = torch.dot(d_flat, d_flat).clamp_min(1e-30)
-    coeffs = u_flat.double().T @ d_flat
+    coeffs = u_flat.float().T @ d_flat
     return float((coeffs.square().sum() / denom).detach().cpu())
 
 
@@ -32,7 +36,7 @@ def top_k_subspace_basis(weight: torch.Tensor, k: int) -> torch.Tensor:
     """
     Top-k left singular vectors of a 2D matrix, shape (numel_rows, k).
     """
-    mat = weight.detach().float()
+    mat = _to_float32_cpu(weight)
     u, _, _ = torch.linalg.svd(mat, full_matrices=False)
     k_eff = min(k, u.shape[1])
     return u[:, :k_eff]

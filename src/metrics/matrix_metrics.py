@@ -4,8 +4,12 @@ import numpy as np
 import torch
 
 
+def _to_float32_cpu(weight: torch.Tensor) -> torch.Tensor:
+    return weight.detach().float().cpu()
+
+
 def matrix_metrics(weight):
-    mat = weight.detach().float().cpu()
+    mat = _to_float32_cpu(weight)
     rows, cols = mat.shape
 
     singular_values = torch.linalg.svdvals(mat)
@@ -24,10 +28,10 @@ def matrix_metrics(weight):
     normalized = mat / max(spectral_norm, 1e-12)
     if rows >= cols:
         gram = normalized.T @ normalized
-        identity = torch.eye(cols)
+        identity = torch.eye(cols, dtype=mat.dtype, device=mat.device)
     else:
         gram = normalized @ normalized.T
-        identity = torch.eye(rows)
+        identity = torch.eye(rows, dtype=mat.dtype, device=mat.device)
 
     orthogonality_error = torch.linalg.matrix_norm(gram - identity, ord="fro").item()
     orthogonality_error /= math.sqrt(identity.size(0))
